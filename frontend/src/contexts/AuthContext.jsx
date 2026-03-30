@@ -17,8 +17,10 @@ const AuthContext = createContext(null);
  */
 export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
-    // const user = null; // TODO: Modify me.
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        const storedUser = localStorage.getItem("user");
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
     const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const authFetch = (url, options = {}, token) => {
@@ -44,16 +46,33 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("token", token);
     }
 
+    const setUserInStorage = (userData) => {
+        localStorage.setItem("user", JSON.stringify(userData));
+    }
+
     useEffect(() => {
-        // TODO: complete me, by retriving token from localStorage and make an api call to GET /user/me.
         const token = localStorage.getItem("token");
 
         if (token) {
-            authFetch(`${VITE_BACKEND_URL}/users/me`, { method: "GET" }, token)
-                .then( response => response.json() )
-                .then(response => setUser(response.user))
-                .catch(() => setUser(null));
+            authFetch(`${VITE_BACKEND_URL}/user/me`, { method: "GET" }, token)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error("Unable to restore session");
+                    }
+
+                    return response.json();
+                })
+                .then((response) => {
+                    setUser(response.user);
+                    setUserInStorage(response.user);
+                })
+                .catch(() => {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    setUser(null);
+                });
         } else {
+            localStorage.removeItem("user");
             setUser(null);
         }
 
@@ -65,8 +84,8 @@ export const AuthProvider = ({ children }) => {
      * @remarks This function will always navigate to "/".
      */
     const logout = () => {
-        // TODO: complete me
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
         navigate("/");
     };
@@ -104,8 +123,7 @@ export const AuthProvider = ({ children }) => {
             const userData = await userResponse.json();
 
             setUser(userData.user);
-
-            console.log(userData);
+            setUserInStorage(userData.user);
 
             navigate("/profile");
         } catch (err) {
