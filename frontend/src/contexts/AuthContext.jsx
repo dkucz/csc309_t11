@@ -141,7 +141,7 @@ export const AuthProvider = ({ children }) => {
                 return data.message;
             }
 
-            navigate("/");
+            navigate("/success");
         } catch (err) {
             return err.message;
         }
